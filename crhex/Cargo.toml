@@ -1,0 +1,11 @@
+[package]
+name = "crhex"
+version = "0.1.0"
+authors = ["boxdot <d@zerovolt.org>"]
+edition = "2018"
+
+[dependencies]
+anyhow = "1.0.40"
+argh = "0.1.4"
+hex = "0.4.3"
+cr = { path = "../cr" }

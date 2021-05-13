@@ -1,7 +1,6 @@
-[package]
-name = "cr"
-version = "0.1.0"
-authors = ["boxdot <d@zerovolt.org>"]
-edition = "2018"
+[workspace]
 
-[dependencies]
+members = [
+    "cr",
+    "crhex"
+]

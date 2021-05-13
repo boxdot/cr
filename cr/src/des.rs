@@ -167,9 +167,9 @@ mod tests {
 
     #[test]
     fn test_encrypt() {
-        let plaintext: u64 = 0xC0FFEE;
-        let key: u64 = 0xF00D;
-        let ciphertext: u64 = 0xc0d80188ed6a1233;
+        let plaintext: u64 = hex_to_u64("0000000000C0FFEE");
+        let key: u64 = hex_to_u64("000000000000F00D");
+        let ciphertext: u64 = hex_to_u64("a271e9bac8862997");
 
         assert_eq!(encrypt(plaintext, key), ciphertext);
         assert_eq!(decrypt(ciphertext, key), plaintext);
@@ -182,5 +182,12 @@ mod tests {
         assert_eq!(rotate_key_left(1 << 27, 1), 1);
         assert_eq!(rotate_key_left(1 << 27, 2), 2);
         assert_eq!(rotate_key_left((1 << 28) - 1, 2), (1 << 28) - 1);
+    }
+
+    fn hex_to_u64(s: &str) -> u64 {
+        use std::convert::TryInto;
+        let bytes_vec = hex::decode(s).unwrap();
+        let bytes: [u8; 8] = bytes_vec.try_into().unwrap();
+        u64::from_le_bytes(bytes)
     }
 }
