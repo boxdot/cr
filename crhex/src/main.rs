@@ -1,5 +1,3 @@
-use cr;
-
 use anyhow::{anyhow, bail, Context as _};
 use argh::FromArgs;
 
@@ -61,13 +59,13 @@ fn main() -> anyhow::Result<()> {
 
 fn hex_to_array<const N: usize>(s: &str) -> anyhow::Result<[u8; N]> {
     let bytes_vec = hex::decode(s)?;
-    Ok(bytes_vec.try_into().map_err(|v: Vec<_>| {
+    bytes_vec.try_into().map_err(|v: Vec<_>| {
         anyhow!(
             "expected a hex string of {} bytes but it was {}",
             N,
             v.len()
         )
-    })?)
+    })
 }
 
 fn hex_to_u64(s: &str) -> anyhow::Result<u64> {
