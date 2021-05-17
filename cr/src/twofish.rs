@@ -47,10 +47,53 @@ impl Index<Range<usize>> for Key {
     }
 }
 
-pub fn encrypt(_plaintext: [u8; 16], key: Key) -> [u8; 16] {
-    let _schedule = expand_key(key);
+pub fn encrypt(plaintext: [u8; 16], key: Key) -> [u8; 16] {
+    let schedule = expand_key(key);
 
-    todo!();
+    // whitening with the first 4 keys
+    let mut x = [0; 4];
+    for i in 0..4 {
+        x[i] = u32::from_le_bytes([
+            plaintext[4 * i],
+            plaintext[4 * i + 1],
+            plaintext[4 * i + 2],
+            plaintext[4 * i + 3],
+        ]) ^ schedule.subkeys[i];
+    }
+
+    for r in 0..NUM_ROUNDS {
+        let t0 = g(x[0], schedule.sbox_keys());
+        let t1 = g(x[1].rotate_left(8), schedule.sbox_keys());
+
+        // PHT with shifts
+        x[3] = x[3].rotate_left(1);
+        x[2] ^= t0
+            .wrapping_add(t1)
+            .wrapping_add(schedule.subkeys[NUM_WHITENING_SUBKEYS + 2 * r]);
+        x[3] ^= t0
+            .wrapping_add(t1 << 1)
+            .wrapping_add(schedule.subkeys[NUM_WHITENING_SUBKEYS + 2 * r + 1]);
+        x[2] = x[2].rotate_right(1);
+
+        // swap for the next round (if any)
+        if r + 1 < NUM_ROUNDS {
+            x.swap(0, 2);
+            x.swap(1, 3);
+        }
+    }
+
+    // whitening with the second 4 keys
+    let mut ciphertext = [0; 16];
+    for i in 0..4 {
+        x[i] ^= schedule.subkeys[4 + i];
+        let b = x[i].to_le_bytes();
+        ciphertext[4 * i] = b[0];
+        ciphertext[4 * i + 1] = b[1];
+        ciphertext[4 * i + 2] = b[2];
+        ciphertext[4 * i + 3] = b[3];
+    }
+
+    ciphertext
 }
 
 #[allow(dead_code)]
@@ -58,6 +101,12 @@ struct KeySchedule {
     len_u64: usize,
     sbox_keys: [u32; 4],
     subkeys: [u32; NUM_WHITENING_SUBKEYS + 2 * NUM_ROUNDS],
+}
+
+impl KeySchedule {
+    fn sbox_keys(&self) -> &[u32] {
+        &self.sbox_keys[0..self.len_u64]
+    }
 }
 
 fn expand_key(key: Key) -> KeySchedule {
@@ -81,7 +130,6 @@ fn expand_key(key: Key) -> KeySchedule {
             key[offset + 7],
         ]);
         let v = key[offset..offset + 8].try_into().unwrap();
-        println!("{} S={:08X}", i, u32::from_le_bytes(mult_rs_matrix(v)));
         sbox_keys[key.len_u64() - i - 1] = u32::from_le_bytes(mult_rs_matrix(v));
     }
 
@@ -90,8 +138,8 @@ fn expand_key(key: Key) -> KeySchedule {
     const SK_ROTL: u32 = 9;
 
     for i in 0..NUM_WHITENING_SUBKEYS / 2 + NUM_ROUNDS {
-        let a = f(i as u32 * SK_STEP, &keys_even[0..key.len_u64()]);
-        let b = f(i as u32 * SK_STEP + SK_BUMP, &keys_odd[0..key.len_u64()]).rotate_left(8);
+        let a = h(i as u32 * SK_STEP, &keys_even[0..key.len_u64()]);
+        let b = h(i as u32 * SK_STEP + SK_BUMP, &keys_odd[0..key.len_u64()]).rotate_left(8);
         subkeys[2 * i] = a.wrapping_add(b);
         subkeys[2 * i + 1] = a.wrapping_add(b.wrapping_mul(2)).rotate_left(SK_ROTL);
     }
@@ -103,26 +151,27 @@ fn expand_key(key: Key) -> KeySchedule {
     }
 }
 
-fn f(x: u32, keys: &[u32]) -> u32 {
+/// h-Functions as defined in 4.3.2
+fn h(x: u32, l: &[u32]) -> u32 {
     let mut b = x.to_le_bytes();
 
     // 8x8 S-box application XOR key
-    if keys.len() == 4 {
-        let k3 = keys[3].to_le_bytes();
+    if l.len() == 4 {
+        let k3 = l[3].to_le_bytes();
         b[0] = p1(b[0]) ^ k3[0];
         b[1] = p0(b[1]) ^ k3[1];
         b[2] = p0(b[2]) ^ k3[2];
         b[3] = p1(b[3]) ^ k3[3];
     }
-    if keys.len() >= 3 {
-        let k2 = keys[2].to_le_bytes();
+    if l.len() >= 3 {
+        let k2 = l[2].to_le_bytes();
         b[0] = p1(b[0]) ^ k2[0];
         b[1] = p1(b[1]) ^ k2[1];
         b[2] = p0(b[2]) ^ k2[2];
         b[3] = p0(b[3]) ^ k2[3];
     }
-    let k0 = keys[0].to_le_bytes();
-    let k1 = keys[1].to_le_bytes();
+    let k0 = l[0].to_le_bytes();
+    let k1 = l[1].to_le_bytes();
     b[0] = p1(p0(p0(b[0]) ^ k1[0]) ^ k0[0]);
     b[1] = p0(p0(p1(b[1]) ^ k1[1]) ^ k0[1]);
     b[2] = p1(p1(p0(b[2]) ^ k1[2]) ^ k0[2]);
@@ -135,6 +184,11 @@ fn f(x: u32, keys: &[u32]) -> u32 {
         mult_ef(b[0]) ^ mult_5b(b[1]) ^ b[2] ^ mult_ef(b[3]),
         mult_ef(b[0]) ^ b[1] ^ mult_ef(b[2]) ^ mult_5b(b[3]),
     ])
+}
+
+/// g-Function as defined in 4.3.3
+fn g(x: u32, s: &[u32]) -> u32 {
+    h(x, s)
 }
 
 fn mult_5b(x: u8) -> u8 {
@@ -350,5 +404,35 @@ mod tests {
             0x5C133D12, 0x3A9247F7, 0x9A3331DD, 0xEE7515E6, 0xF0D54DCD,
         ];
         assert_eq!(schedule.subkeys, EXPECTED);
+    }
+
+    #[test]
+    fn test_encrypt_128() {
+        let key = Key::Key128([0; 16]);
+        let ciphertext = encrypt([0; 16], key);
+        let expected = <[u8; 16]>::from_hex("9F589F5CF6122C32B6BFEC2F2AE8C35A").unwrap();
+        assert_eq!(ciphertext, expected);
+    }
+
+    #[test]
+    fn test_encrypt_192() {
+        let key_bytes =
+            <[u8; 24]>::from_hex("0123456789ABCDEFFEDCBA98765432100011223344556677").unwrap();
+        let key = Key::Key192(key_bytes);
+        let ciphertext = encrypt([0; 16], key);
+        let expected = <[u8; 16]>::from_hex("CFD1D2E5A9BE9CDF501F13B892BD2248").unwrap();
+        assert_eq!(ciphertext, expected);
+    }
+
+    #[test]
+    fn test_encrypt_256() {
+        let key_bytes = <[u8; 32]>::from_hex(
+            "0123456789ABCDEFFEDCBA987654321000112233445566778899AABBCCDDEEFF",
+        )
+        .unwrap();
+        let key = Key::Key256(key_bytes);
+        let ciphertext = encrypt([0; 16], key);
+        let expected = <[u8; 16]>::from_hex("37527BE0052334B89F0CFCCAE87CFA20").unwrap();
+        assert_eq!(ciphertext, expected);
     }
 }
