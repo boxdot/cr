@@ -7,6 +7,7 @@ use std::ops::{Index, Range};
 const NUM_ROUNDS: usize = 16;
 const NUM_WHITENING_SUBKEYS: usize = 8;
 
+#[derive(Clone, Copy)]
 pub enum Key {
     Key128([u8; 16]),
     Key192([u8; 24]),
@@ -47,53 +48,83 @@ impl Index<Range<usize>> for Key {
     }
 }
 
-pub fn encrypt(plaintext: [u8; 16], key: Key) -> [u8; 16] {
+pub fn encrypt(mut data: [u8; 16], key: Key) -> [u8; 16] {
     let schedule = expand_key(key);
 
     // whitening with the first 4 keys
-    let mut x = [0; 4];
-    for i in 0..4 {
-        x[i] = u32::from_le_bytes([
-            plaintext[4 * i],
-            plaintext[4 * i + 1],
-            plaintext[4 * i + 2],
-            plaintext[4 * i + 3],
-        ]) ^ schedule.subkeys[i];
+    let mut x = [
+        get_u32(&data, 0) ^ schedule.subkeys[0],
+        get_u32(&data, 4) ^ schedule.subkeys[1],
+        get_u32(&data, 8) ^ schedule.subkeys[2],
+        get_u32(&data, 12) ^ schedule.subkeys[3],
+    ];
+
+    let mut encrypt_round = |i0: usize, i1: usize, i2: usize, i3: usize, r: usize| {
+        let t0 = g(x[i0], schedule.sbox_keys());
+        let t1 = g(x[i1].rotate_left(8), schedule.sbox_keys());
+        let k0 = schedule.subkeys[NUM_WHITENING_SUBKEYS + 2 * r];
+        let k1 = schedule.subkeys[NUM_WHITENING_SUBKEYS + 2 * r + 1];
+        x[i3] = x[i3].rotate_left(1) ^ t0.wrapping_add(t1 << 1).wrapping_add(k1);
+        x[i2] = (x[i2] ^ t0.wrapping_add(t1).wrapping_add(k0)).rotate_right(1);
+    };
+
+    for r in 0..NUM_ROUNDS / 2 {
+        encrypt_round(0, 1, 2, 3, 2 * r);
+        encrypt_round(2, 3, 0, 1, 2 * r + 1);
     }
 
-    for r in 0..NUM_ROUNDS {
-        let t0 = g(x[0], schedule.sbox_keys());
-        let t1 = g(x[1].rotate_left(8), schedule.sbox_keys());
+    set_u32(&mut data, 0, x[2] ^ schedule.subkeys[4]);
+    set_u32(&mut data, 4, x[3] ^ schedule.subkeys[4 + 1]);
+    set_u32(&mut data, 8, x[0] ^ schedule.subkeys[4 + 2]);
+    set_u32(&mut data, 12, x[1] ^ schedule.subkeys[4 + 3]);
 
-        // PHT with shifts
-        x[3] = x[3].rotate_left(1);
-        x[2] ^= t0
-            .wrapping_add(t1)
-            .wrapping_add(schedule.subkeys[NUM_WHITENING_SUBKEYS + 2 * r]);
-        x[3] ^= t0
-            .wrapping_add(t1 << 1)
-            .wrapping_add(schedule.subkeys[NUM_WHITENING_SUBKEYS + 2 * r + 1]);
-        x[2] = x[2].rotate_right(1);
+    data
+}
 
-        // swap for the next round (if any)
-        if r + 1 < NUM_ROUNDS {
-            x.swap(0, 2);
-            x.swap(1, 3);
-        }
-    }
+pub fn decrypt(mut data: [u8; 16], key: Key) -> [u8; 16] {
+    let schedule = expand_key(key);
 
     // whitening with the second 4 keys
-    let mut ciphertext = [0; 16];
-    for i in 0..4 {
-        x[i] ^= schedule.subkeys[4 + i];
-        let b = x[i].to_le_bytes();
-        ciphertext[4 * i] = b[0];
-        ciphertext[4 * i + 1] = b[1];
-        ciphertext[4 * i + 2] = b[2];
-        ciphertext[4 * i + 3] = b[3];
+    let mut x = [
+        get_u32(&data, 0) ^ schedule.subkeys[4],
+        get_u32(&data, 4) ^ schedule.subkeys[4 + 1],
+        get_u32(&data, 8) ^ schedule.subkeys[4 + 2],
+        get_u32(&data, 12) ^ schedule.subkeys[4 + 3],
+    ];
+
+    let mut decrypt_round = |i0: usize, i1: usize, i2: usize, i3: usize, r: usize| {
+        let t0 = g(x[i0], schedule.sbox_keys());
+        let t1 = g(x[i1].rotate_left(8), schedule.sbox_keys());
+        let k0 = schedule.subkeys[NUM_WHITENING_SUBKEYS + 2 * r];
+        let k1 = schedule.subkeys[NUM_WHITENING_SUBKEYS + 2 * r + 1];
+        x[i2] = x[i2].rotate_left(1) ^ t0.wrapping_add(t1).wrapping_add(k0);
+        x[i3] = (x[i3] ^ t0.wrapping_add(t1 << 1).wrapping_add(k1)).rotate_right(1);
+    };
+
+    for r in (0..NUM_ROUNDS / 2).rev() {
+        decrypt_round(0, 1, 2, 3, 2 * r + 1);
+        decrypt_round(2, 3, 0, 1, 2 * r);
     }
 
-    ciphertext
+    // swap and whitening with the first 4 keys
+    set_u32(&mut data, 0, x[2] ^ schedule.subkeys[0]);
+    set_u32(&mut data, 4, x[3] ^ schedule.subkeys[1]);
+    set_u32(&mut data, 8, x[0] ^ schedule.subkeys[2]);
+    set_u32(&mut data, 12, x[1] ^ schedule.subkeys[3]);
+
+    data
+}
+
+fn get_u32(data: &[u8; 16], idx: usize) -> u32 {
+    u32::from_le_bytes([data[idx], data[idx + 1], data[idx + 2], data[idx + 3]])
+}
+
+fn set_u32(data: &mut [u8; 16], idx: usize, value: u32) {
+    let b = value.to_le_bytes();
+    data[idx] = b[0];
+    data[idx + 1] = b[1];
+    data[idx + 2] = b[2];
+    data[idx + 3] = b[3];
 }
 
 #[allow(dead_code)]
@@ -409,9 +440,12 @@ mod tests {
     #[test]
     fn test_encrypt_128() {
         let key = Key::Key128([0; 16]);
-        let ciphertext = encrypt([0; 16], key);
+        let plaintext = [0; 16];
+        let ciphertext = encrypt(plaintext, key);
         let expected = <[u8; 16]>::from_hex("9F589F5CF6122C32B6BFEC2F2AE8C35A").unwrap();
         assert_eq!(ciphertext, expected);
+        let plaintext2 = decrypt(ciphertext, key);
+        assert_eq!(plaintext, plaintext2);
     }
 
     #[test]
