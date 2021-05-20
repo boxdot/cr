@@ -164,12 +164,13 @@ const P_BITS: [usize; 32] = [
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::hex;
 
     #[test]
     fn test_encrypt() {
-        let plaintext: u64 = hex_to_u64("0000000000C0FFEE");
-        let key: u64 = hex_to_u64("000000000000F00D");
-        let ciphertext: u64 = hex_to_u64("a271e9bac8862997");
+        let plaintext: u64 = u64::from_le_bytes(hex("0000000000C0FFEE").unwrap());
+        let key: u64 = u64::from_le_bytes(hex("000000000000F00D").unwrap());
+        let ciphertext: u64 = u64::from_le_bytes(hex("a271e9bac8862997").unwrap());
 
         assert_eq!(encrypt(plaintext, key), ciphertext);
         assert_eq!(decrypt(ciphertext, key), plaintext);
@@ -182,12 +183,5 @@ mod tests {
         assert_eq!(rotate_key_left(1 << 27, 1), 1);
         assert_eq!(rotate_key_left(1 << 27, 2), 2);
         assert_eq!(rotate_key_left((1 << 28) - 1, 2), (1 << 28) - 1);
-    }
-
-    fn hex_to_u64(s: &str) -> u64 {
-        use std::convert::TryInto;
-        let bytes_vec = hex::decode(s).unwrap();
-        let bytes: [u8; 8] = bytes_vec.try_into().unwrap();
-        u64::from_le_bytes(bytes)
     }
 }

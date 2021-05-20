@@ -371,7 +371,7 @@ const MULT_EF: [u8; 256] = [
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hex::FromHex;
+    use crate::{hex, hex_string};
     use quickcheck_macros::quickcheck;
 
     #[test]
@@ -395,8 +395,7 @@ mod tests {
 
     #[test]
     fn test_expand_key_192_key() {
-        let key_bytes =
-            <[u8; 24]>::from_hex("0123456789ABCDEFFEDCBA98765432100011223344556677").unwrap();
+        let key_bytes = hex("0123456789ABCDEFFEDCBA98765432100011223344556677").unwrap();
         let key = Key::Key192(key_bytes);
         let schedule = expand_key(key);
         assert_eq!(schedule.len_u64, 3);
@@ -415,10 +414,8 @@ mod tests {
 
     #[test]
     fn test_expand_key_256_key() {
-        let key_bytes = <[u8; 32]>::from_hex(
-            "0123456789ABCDEFFEDCBA987654321000112233445566778899AABBCCDDEEFF",
-        )
-        .unwrap();
+        let key_bytes =
+            hex("0123456789ABCDEFFEDCBA987654321000112233445566778899AABBCCDDEEFF").unwrap();
         let key = Key::Key256(key_bytes);
         let schedule = expand_key(key);
         assert_eq!(schedule.len_u64, 4);
@@ -438,17 +435,14 @@ mod tests {
         assert_eq!(schedule.subkeys, EXPECTED);
     }
 
-    fn encrypt_decrypt_with_ciphertext(plaintext: &str, key: &str, ciphertext: &str) {
-        let plaintext = <[u8; 16]>::from_hex(plaintext).expect("invalid plaintext");
-        let key_bytes = hex::decode(key).expect("invalid key");
-        let key = match key_bytes.len() {
-            16 => Key::Key128(key_bytes.try_into().unwrap()),
-            24 => Key::Key192(key_bytes.try_into().unwrap()),
-            32 => Key::Key256(key_bytes.try_into().unwrap()),
-            _ => unreachable!("invalid key length"),
-        };
-        let ciphertext = <[u8; 16]>::from_hex(ciphertext).expect("invalid ciphertext");
+    fn parse_key(s: &str) -> Option<Key> {
+        hex(s)
+            .map(Key::Key128)
+            .or_else(|| hex(s).map(Key::Key192))
+            .or_else(|| hex(s).map(Key::Key256))
+    }
 
+    fn encrypt_decrypt_with_ciphertext(plaintext: [u8; 16], key: Key, ciphertext: [u8; 16]) {
         let encrypted_ciphertext = encrypt(plaintext, key);
         assert_eq!(encrypted_ciphertext, ciphertext);
 
@@ -459,40 +453,33 @@ mod tests {
     #[test]
     fn test_encrypt_128() {
         encrypt_decrypt_with_ciphertext(
-            "00000000000000000000000000000000",
-            "00000000000000000000000000000000",
-            "9F589F5CF6122C32B6BFEC2F2AE8C35A",
+            hex("00000000000000000000000000000000").unwrap(),
+            parse_key("00000000000000000000000000000000").unwrap(),
+            hex("9F589F5CF6122C32B6BFEC2F2AE8C35A").unwrap(),
         );
     }
 
     #[test]
     fn test_encrypt_192() {
         encrypt_decrypt_with_ciphertext(
-            "00000000000000000000000000000000",
-            "0123456789ABCDEFFEDCBA98765432100011223344556677",
-            "CFD1D2E5A9BE9CDF501F13B892BD2248",
+            hex("00000000000000000000000000000000").unwrap(),
+            parse_key("0123456789ABCDEFFEDCBA98765432100011223344556677").unwrap(),
+            hex("CFD1D2E5A9BE9CDF501F13B892BD2248").unwrap(),
         );
     }
 
     #[test]
     fn test_encrypt_256() {
         encrypt_decrypt_with_ciphertext(
-            "00000000000000000000000000000000",
-            "0123456789ABCDEFFEDCBA987654321000112233445566778899AABBCCDDEEFF",
-            "37527BE0052334B89F0CFCCAE87CFA20",
+            hex("00000000000000000000000000000000").unwrap(),
+            parse_key("0123456789ABCDEFFEDCBA987654321000112233445566778899AABBCCDDEEFF").unwrap(),
+            hex("37527BE0052334B89F0CFCCAE87CFA20").unwrap(),
         );
     }
 
     fn encrypt_decrypt(plaintext: &str, key: &str) {
-        let plaintext = <[u8; 16]>::from_hex(plaintext).expect("invalid plaintext");
-        let key_bytes = hex::decode(key).expect("invalid key");
-        let key = match key_bytes.len() {
-            16 => Key::Key128(key_bytes.try_into().unwrap()),
-            24 => Key::Key192(key_bytes.try_into().unwrap()),
-            32 => Key::Key256(key_bytes.try_into().unwrap()),
-            _ => unreachable!("invalid key length"),
-        };
-
+        let plaintext = hex(plaintext).expect("invalid plaintext");
+        let key = parse_key(key).expect("invalid key");
         let decrypted_plaintext = decrypt(encrypt(plaintext, key), key);
         assert_eq!(decrypted_plaintext, plaintext);
     }
@@ -500,19 +487,19 @@ mod tests {
     #[quickcheck]
     fn test_encrypt_128_random(plaintext: u128, key: u128) {
         encrypt_decrypt(
-            &hex::encode(plaintext.to_le_bytes()),
-            &hex::encode(key.to_le_bytes()),
+            &hex_string(plaintext.to_le_bytes()),
+            &hex_string(key.to_le_bytes()),
         );
     }
 
     #[quickcheck]
-    fn test_encrypt_192_random(plaintext: u128, key0: u64, key1: u64) {
+    fn test_encrypt_192_random(plaintext: u128, key0: u128, key1: u64) {
         encrypt_decrypt(
-            &hex::encode(plaintext.to_le_bytes()),
+            &hex_string(plaintext.to_le_bytes()),
             &(format!(
                 "{}{}",
-                hex::encode(key0.to_le_bytes()),
-                hex::encode(key1.to_le_bytes())
+                hex_string(key0.to_le_bytes()),
+                hex_string(key1.to_le_bytes())
             )),
         );
     }
@@ -520,11 +507,11 @@ mod tests {
     #[quickcheck]
     fn test_encrypt_256_random(plaintext: u128, key0: u128, key1: u128) {
         encrypt_decrypt(
-            &hex::encode(plaintext.to_le_bytes()),
+            &hex_string(plaintext.to_le_bytes()),
             &(format!(
                 "{}{}",
-                hex::encode(key0.to_le_bytes()),
-                hex::encode(key1.to_le_bytes())
+                hex_string(key0.to_le_bytes()),
+                hex_string(key1.to_le_bytes())
             )),
         );
     }

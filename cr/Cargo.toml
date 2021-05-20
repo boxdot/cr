@@ -7,6 +7,5 @@ edition = "2018"
 [dependencies]
 
 [dev-dependencies]
-hex = "0.4.3"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"

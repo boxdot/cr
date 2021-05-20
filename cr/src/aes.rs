@@ -382,25 +382,18 @@ const GF_MUL_14: [u8; 256] = [
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::hex;
 
     use quickcheck_macros::quickcheck;
 
-    use std::convert::TryInto;
-
     #[test]
     fn test_encrypt_decrypt_128() {
-        let plaintext = hex::decode("3243f6a8885a308d313198a2e0370734")
-            .unwrap()
-            .try_into()
-            .unwrap();
-        let key = hex::decode("2b7e151628aed2a6abf7158809cf4f3c")
-            .unwrap()
-            .try_into()
-            .unwrap();
+        let plaintext = hex("3243f6a8885a308d313198a2e0370734").unwrap();
+        let key = hex("2b7e151628aed2a6abf7158809cf4f3c").unwrap();
         let ciphertext = encrypt_128(plaintext, key);
 
-        let expected_ciphertext = hex::decode("3925841d02dc09fbdc118597196a0b32").unwrap();
-        assert_eq!(ciphertext, &expected_ciphertext[..]);
+        let expected_ciphertext = hex("3925841d02dc09fbdc118597196a0b32").unwrap();
+        assert_eq!(ciphertext, expected_ciphertext);
 
         let decrypted = decrypt_128(ciphertext, key);
         assert_eq!(decrypted, plaintext);
@@ -449,18 +442,17 @@ mod tests {
             .map(|x| x.swap_bytes())
             .collect();
 
-        let key = hex::decode("2b7e151628aed2a6abf7158809cf4f3c").unwrap();
-        let round_keys = key_expansion(key.try_into().unwrap());
+        let key = hex("2b7e151628aed2a6abf7158809cf4f3c").unwrap();
+        let round_keys = key_expansion(key);
         assert_eq!(round_keys, &expected_round_keys[..]);
     }
 
     #[test]
     fn test_mix_columns() {
-        let expected = hex::decode("046681e5e0cb199a48f8d37a2806264c").unwrap();
-        let state = hex::decode("d4bf5d30e0b452aeb84111f11e2798e5").unwrap();
-        let mut state = state.try_into().unwrap();
+        let expected = hex("046681e5e0cb199a48f8d37a2806264c").unwrap();
+        let mut state = hex("d4bf5d30e0b452aeb84111f11e2798e5").unwrap();
         mix_columns(&mut state);
-        assert_eq!(state, &expected[..]);
+        assert_eq!(state, expected);
     }
 
     #[quickcheck]
