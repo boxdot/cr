@@ -4,8 +4,13 @@ version = "0.1.0"
 authors = ["boxdot <d@zerovolt.org>"]
 edition = "2018"
 
+[[bench]]
+name = "aes"
+harness = false
+
 [dependencies]
 
 [dev-dependencies]
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
+iai = "0.1"
