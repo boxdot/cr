@@ -10,6 +10,7 @@ edition = "2018"
 iai = "0.1"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
+digest = { version = "0.9", features = ["dev"] }
 
 [[bench]]
 name = "md5_iai"

@@ -40,7 +40,7 @@ impl Md5 {
             idx += 1;
             if idx == 64 {
                 decode(&self.buffer, &mut block);
-                transform(&mut self.state, &block);
+                compress(&mut self.state, &block);
                 idx = 0;
             }
         }
@@ -67,7 +67,7 @@ impl Default for Md5 {
     }
 }
 
-fn transform(state: &mut [u32; 4], x: &[u32; 16]) {
+fn compress(state: &mut [u32; 4], block: &[u32; 16]) {
     let mut a = state[0];
     let mut b = state[1];
     let mut c = state[2];
@@ -79,22 +79,22 @@ fn transform(state: &mut [u32; 4], x: &[u32; 16]) {
     const S13: u32 = 17;
     const S14: u32 = 22;
 
-    step(&mut a, b, c, d, x[0], S11, 0xd76aa478, f); // 1
-    step(&mut d, a, b, c, x[1], S12, 0xe8c7b756, f); // 2
-    step(&mut c, d, a, b, x[2], S13, 0x242070db, f); // 3
-    step(&mut b, c, d, a, x[3], S14, 0xc1bdceee, f); // 4
-    step(&mut a, b, c, d, x[4], S11, 0xf57c0faf, f); // 5
-    step(&mut d, a, b, c, x[5], S12, 0x4787c62a, f); // 6
-    step(&mut c, d, a, b, x[6], S13, 0xa8304613, f); // 7
-    step(&mut b, c, d, a, x[7], S14, 0xfd469501, f); // 8
-    step(&mut a, b, c, d, x[8], S11, 0x698098d8, f); // 9
-    step(&mut d, a, b, c, x[9], S12, 0x8b44f7af, f); // 10
-    step(&mut c, d, a, b, x[10], S13, 0xffff5bb1, f); // 11
-    step(&mut b, c, d, a, x[11], S14, 0x895cd7be, f); // 12
-    step(&mut a, b, c, d, x[12], S11, 0x6b901122, f); // 13
-    step(&mut d, a, b, c, x[13], S12, 0xfd987193, f); // 14
-    step(&mut c, d, a, b, x[14], S13, 0xa679438e, f); // 15
-    step(&mut b, c, d, a, x[15], S14, 0x49b40821, f); // 16
+    step(&mut a, b, c, d, block[0], S11, 0xd76aa478, f); // 1
+    step(&mut d, a, b, c, block[1], S12, 0xe8c7b756, f); // 2
+    step(&mut c, d, a, b, block[2], S13, 0x242070db, f); // 3
+    step(&mut b, c, d, a, block[3], S14, 0xc1bdceee, f); // 4
+    step(&mut a, b, c, d, block[4], S11, 0xf57c0faf, f); // 5
+    step(&mut d, a, b, c, block[5], S12, 0x4787c62a, f); // 6
+    step(&mut c, d, a, b, block[6], S13, 0xa8304613, f); // 7
+    step(&mut b, c, d, a, block[7], S14, 0xfd469501, f); // 8
+    step(&mut a, b, c, d, block[8], S11, 0x698098d8, f); // 9
+    step(&mut d, a, b, c, block[9], S12, 0x8b44f7af, f); // 10
+    step(&mut c, d, a, b, block[10], S13, 0xffff5bb1, f); // 11
+    step(&mut b, c, d, a, block[11], S14, 0x895cd7be, f); // 12
+    step(&mut a, b, c, d, block[12], S11, 0x6b901122, f); // 13
+    step(&mut d, a, b, c, block[13], S12, 0xfd987193, f); // 14
+    step(&mut c, d, a, b, block[14], S13, 0xa679438e, f); // 15
+    step(&mut b, c, d, a, block[15], S14, 0x49b40821, f); // 16
 
     // Round 2
     const S21: u32 = 5;
@@ -102,22 +102,22 @@ fn transform(state: &mut [u32; 4], x: &[u32; 16]) {
     const S23: u32 = 14;
     const S24: u32 = 20;
 
-    step(&mut a, b, c, d, x[1], S21, 0xf61e2562, g); // 17
-    step(&mut d, a, b, c, x[6], S22, 0xc040b340, g); // 18
-    step(&mut c, d, a, b, x[11], S23, 0x265e5a51, g); // 19
-    step(&mut b, c, d, a, x[0], S24, 0xe9b6c7aa, g); // 20
-    step(&mut a, b, c, d, x[5], S21, 0xd62f105d, g); // 21
-    step(&mut d, a, b, c, x[10], S22, 0x2441453, g); // 22
-    step(&mut c, d, a, b, x[15], S23, 0xd8a1e681, g); // 23
-    step(&mut b, c, d, a, x[4], S24, 0xe7d3fbc8, g); // 24
-    step(&mut a, b, c, d, x[9], S21, 0x21e1cde6, g); // 25
-    step(&mut d, a, b, c, x[14], S22, 0xc33707d6, g); // 26
-    step(&mut c, d, a, b, x[3], S23, 0xf4d50d87, g); // 27
-    step(&mut b, c, d, a, x[8], S24, 0x455a14ed, g); // 28
-    step(&mut a, b, c, d, x[13], S21, 0xa9e3e905, g); // 29
-    step(&mut d, a, b, c, x[2], S22, 0xfcefa3f8, g); // 30
-    step(&mut c, d, a, b, x[7], S23, 0x676f02d9, g); // 31
-    step(&mut b, c, d, a, x[12], S24, 0x8d2a4c8a, g); // 32
+    step(&mut a, b, c, d, block[1], S21, 0xf61e2562, g); // 17
+    step(&mut d, a, b, c, block[6], S22, 0xc040b340, g); // 18
+    step(&mut c, d, a, b, block[11], S23, 0x265e5a51, g); // 19
+    step(&mut b, c, d, a, block[0], S24, 0xe9b6c7aa, g); // 20
+    step(&mut a, b, c, d, block[5], S21, 0xd62f105d, g); // 21
+    step(&mut d, a, b, c, block[10], S22, 0x2441453, g); // 22
+    step(&mut c, d, a, b, block[15], S23, 0xd8a1e681, g); // 23
+    step(&mut b, c, d, a, block[4], S24, 0xe7d3fbc8, g); // 24
+    step(&mut a, b, c, d, block[9], S21, 0x21e1cde6, g); // 25
+    step(&mut d, a, b, c, block[14], S22, 0xc33707d6, g); // 26
+    step(&mut c, d, a, b, block[3], S23, 0xf4d50d87, g); // 27
+    step(&mut b, c, d, a, block[8], S24, 0x455a14ed, g); // 28
+    step(&mut a, b, c, d, block[13], S21, 0xa9e3e905, g); // 29
+    step(&mut d, a, b, c, block[2], S22, 0xfcefa3f8, g); // 30
+    step(&mut c, d, a, b, block[7], S23, 0x676f02d9, g); // 31
+    step(&mut b, c, d, a, block[12], S24, 0x8d2a4c8a, g); // 32
 
     // Round 3
     const S31: u32 = 4;
@@ -125,22 +125,22 @@ fn transform(state: &mut [u32; 4], x: &[u32; 16]) {
     const S33: u32 = 16;
     const S34: u32 = 23;
 
-    step(&mut a, b, c, d, x[5], S31, 0xfffa3942, h); // 33
-    step(&mut d, a, b, c, x[8], S32, 0x8771f681, h); // 34
-    step(&mut c, d, a, b, x[11], S33, 0x6d9d6122, h); // 35
-    step(&mut b, c, d, a, x[14], S34, 0xfde5380c, h); // 36
-    step(&mut a, b, c, d, x[1], S31, 0xa4beea44, h); // 37
-    step(&mut d, a, b, c, x[4], S32, 0x4bdecfa9, h); // 38
-    step(&mut c, d, a, b, x[7], S33, 0xf6bb4b60, h); // 39
-    step(&mut b, c, d, a, x[10], S34, 0xbebfbc70, h); // 40
-    step(&mut a, b, c, d, x[13], S31, 0x289b7ec6, h); // 41
-    step(&mut d, a, b, c, x[0], S32, 0xeaa127fa, h); // 42
-    step(&mut c, d, a, b, x[3], S33, 0xd4ef3085, h); // 43
-    step(&mut b, c, d, a, x[6], S34, 0x4881d05, h); // 44
-    step(&mut a, b, c, d, x[9], S31, 0xd9d4d039, h); // 45
-    step(&mut d, a, b, c, x[12], S32, 0xe6db99e5, h); // 46
-    step(&mut c, d, a, b, x[15], S33, 0x1fa27cf8, h); // 47
-    step(&mut b, c, d, a, x[2], S34, 0xc4ac5665, h); // 48
+    step(&mut a, b, c, d, block[5], S31, 0xfffa3942, h); // 33
+    step(&mut d, a, b, c, block[8], S32, 0x8771f681, h); // 34
+    step(&mut c, d, a, b, block[11], S33, 0x6d9d6122, h); // 35
+    step(&mut b, c, d, a, block[14], S34, 0xfde5380c, h); // 36
+    step(&mut a, b, c, d, block[1], S31, 0xa4beea44, h); // 37
+    step(&mut d, a, b, c, block[4], S32, 0x4bdecfa9, h); // 38
+    step(&mut c, d, a, b, block[7], S33, 0xf6bb4b60, h); // 39
+    step(&mut b, c, d, a, block[10], S34, 0xbebfbc70, h); // 40
+    step(&mut a, b, c, d, block[13], S31, 0x289b7ec6, h); // 41
+    step(&mut d, a, b, c, block[0], S32, 0xeaa127fa, h); // 42
+    step(&mut c, d, a, b, block[3], S33, 0xd4ef3085, h); // 43
+    step(&mut b, c, d, a, block[6], S34, 0x4881d05, h); // 44
+    step(&mut a, b, c, d, block[9], S31, 0xd9d4d039, h); // 45
+    step(&mut d, a, b, c, block[12], S32, 0xe6db99e5, h); // 46
+    step(&mut c, d, a, b, block[15], S33, 0x1fa27cf8, h); // 47
+    step(&mut b, c, d, a, block[2], S34, 0xc4ac5665, h); // 48
 
     // Round 4
     const S41: u32 = 6;
@@ -148,22 +148,22 @@ fn transform(state: &mut [u32; 4], x: &[u32; 16]) {
     const S43: u32 = 15;
     const S44: u32 = 21;
 
-    step(&mut a, b, c, d, x[0], S41, 0xf4292244, i); // 49
-    step(&mut d, a, b, c, x[7], S42, 0x432aff97, i); // 50
-    step(&mut c, d, a, b, x[14], S43, 0xab9423a7, i); // 51
-    step(&mut b, c, d, a, x[5], S44, 0xfc93a039, i); // 52
-    step(&mut a, b, c, d, x[12], S41, 0x655b59c3, i); // 53
-    step(&mut d, a, b, c, x[3], S42, 0x8f0ccc92, i); // 54
-    step(&mut c, d, a, b, x[10], S43, 0xffeff47d, i); // 55
-    step(&mut b, c, d, a, x[1], S44, 0x85845dd1, i); // 56
-    step(&mut a, b, c, d, x[8], S41, 0x6fa87e4f, i); // 57
-    step(&mut d, a, b, c, x[15], S42, 0xfe2ce6e0, i); // 58
-    step(&mut c, d, a, b, x[6], S43, 0xa3014314, i); // 59
-    step(&mut b, c, d, a, x[13], S44, 0x4e0811a1, i); // 60
-    step(&mut a, b, c, d, x[4], S41, 0xf7537e82, i); // 61
-    step(&mut d, a, b, c, x[11], S42, 0xbd3af235, i); // 62
-    step(&mut c, d, a, b, x[2], S43, 0x2ad7d2bb, i); // 63
-    step(&mut b, c, d, a, x[9], S44, 0xeb86d391, i); // 64
+    step(&mut a, b, c, d, block[0], S41, 0xf4292244, i); // 49
+    step(&mut d, a, b, c, block[7], S42, 0x432aff97, i); // 50
+    step(&mut c, d, a, b, block[14], S43, 0xab9423a7, i); // 51
+    step(&mut b, c, d, a, block[5], S44, 0xfc93a039, i); // 52
+    step(&mut a, b, c, d, block[12], S41, 0x655b59c3, i); // 53
+    step(&mut d, a, b, c, block[3], S42, 0x8f0ccc92, i); // 54
+    step(&mut c, d, a, b, block[10], S43, 0xffeff47d, i); // 55
+    step(&mut b, c, d, a, block[1], S44, 0x85845dd1, i); // 56
+    step(&mut a, b, c, d, block[8], S41, 0x6fa87e4f, i); // 57
+    step(&mut d, a, b, c, block[15], S42, 0xfe2ce6e0, i); // 58
+    step(&mut c, d, a, b, block[6], S43, 0xa3014314, i); // 59
+    step(&mut b, c, d, a, block[13], S44, 0x4e0811a1, i); // 60
+    step(&mut a, b, c, d, block[4], S41, 0xf7537e82, i); // 61
+    step(&mut d, a, b, c, block[11], S42, 0xbd3af235, i); // 62
+    step(&mut c, d, a, b, block[2], S43, 0x2ad7d2bb, i); // 63
+    step(&mut b, c, d, a, block[9], S44, 0xeb86d391, i); // 64
 
     state[0] = state[0].wrapping_add(a);
     state[1] = state[1].wrapping_add(b);

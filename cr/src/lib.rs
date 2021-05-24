@@ -1,6 +1,7 @@
 pub mod aes;
 pub mod des;
 pub mod md5;
+pub mod sha1;
 pub mod twofish;
 
 #[cfg(test)]
